@@ -1,0 +1,6 @@
+plugin:
+    name: 'finalpulse.training::lang.plugin.name'
+    description: 'finalpulse.training::lang.plugin.description'
+    author: FinalPulse
+    icon: oc-icon-adjust
+    homepage: ''
