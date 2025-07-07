@@ -1,0 +1,42 @@
+/* assets/css/input.css */
+
+/* 1. Importa tudo do Tailwind */
+@import "tailwindcss";
+
+/* ---- Activa a variante dark: ----- */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 2. Força a inclusão dos ficheiros .htm/.js …            */
+@source "./layouts/**/*.htm";
+@source "./pages/**/*.htm";
+@source "./partials/**/*.htm";
+@source "./**/*.php";
+@source "./assets/js/**/*.js";
+
+/* 3-A. Paleta LIGHT (por defeito) ------------------------- */
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --breakpoint-3xl: 1920px;
+
+  --color-brand-500: #1d4ed8;
+  --color-brand-600: #1e40af;
+}
+
+/* 3-B. Overrides em DARK --------------------------------- */
+@theme html.dark {
+  --color-brand-500: #60a5fa;
+  --color-brand-600: #3b82f6;
+}
+
+/* 4. Utilitários extra ----------------------------------- */
+@layer utilities {
+  .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
+  .scrollbar-hide::-webkit-scrollbar { display:none; }
+}
+
+@layer components {
+  a.trumbowyg-button { pointer-events:none; }
+}
+
+/* 5. Plugins --------------------------------------------- */
+@plugin "@tailwindcss/forms";
