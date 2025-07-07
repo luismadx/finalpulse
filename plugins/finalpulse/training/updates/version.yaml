@@ -1,5 +1,0 @@
-1.0.1:
-    - 'Initialize plugin.'
-1.0.2:
-    - 'Created table finalpulse_training_temp_ignore_me'
-    - builder_table_create_finalpulse_training_temp_ignore_me.php
