@@ -1,0 +1,114 @@
+{# -----------------------------------------------------------------
+   Utilizadores × Produto – ordenável (Alpine)
+   ----------------------------------------------------------------- #}
+
+<div class="container mx-auto px-4 py-6" x-data="userSort()">
+
+  <h2 class="text-xl font-semibold mb-4">Avaliação por Utilizador</h2>
+
+  <div class="bg-white shadow rounded-lg overflow-auto">
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50 text-gray-700">
+        <tr>
+          <th class="px-4 py-3 cursor-pointer select-none" @click="sort('user')">
+            <span class="inline-flex items-center">
+              Utilizador
+              <svg x-show="sortKey==='user'" :class="asc?'rotate-180':''"
+                   class="w-4 h-4 ml-1" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24"><path stroke-linecap="round"
+                   stroke-linejoin="round" stroke-width="2"
+                   d="M5 15l7-7 7 7"/></svg>
+            </span>
+          </th>
+          <th class="px-4 py-3 cursor-pointer select-none" @click="sort('product')">
+            <span class="inline-flex items-center">
+              Produto
+              <svg x-show="sortKey==='product'" :class="asc?'rotate-180':''"
+                   class="w-4 h-4 ml-1" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24"><path stroke-linecap="round"
+                   stroke-linejoin="round" stroke-width="2"
+                   d="M5 15l7-7 7 7"/></svg>
+            </span>
+          </th>
+          <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sort('pct')">
+            <span class="inline-flex items-center">
+              Questões %
+              <svg x-show="sortKey==='pct'" :class="asc?'rotate-180':''"
+                   class="w-4 h-4 ml-1" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24"><path stroke-linecap="round"
+                   stroke-linejoin="round" stroke-width="2"
+                   d="M5 15l7-7 7 7"/></svg>
+            </span>
+          </th>
+          <th class="px-4 py-3 text-center cursor-pointer select-none" @click="sort('pass')">
+            <span class="inline-flex items-center">
+              Passou?
+              <svg x-show="sortKey==='pass'" :class="asc?'rotate-180':''"
+                   class="w-4 h-4 ml-1" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24"><path stroke-linecap="round"
+                   stroke-linejoin="round" stroke-width="2"
+                   d="M5 15l7-7 7 7"/></svg>
+            </span>
+          </th>
+          <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sort('tentativas')">
+            <span class="inline-flex items-center">
+              Tentativas
+              <svg x-show="sortKey==='tentativas'" :class="asc?'rotate-180':''"
+                   class="w-4 h-4 ml-1" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24"><path stroke-linecap="round"
+                   stroke-linejoin="round" stroke-width="2"
+                   d="M5 15l7-7 7 7"/></svg>
+            </span>
+          </th>
+        </tr>
+      </thead>
+
+      <tbody class="divide-y divide-gray-100" x-ref="body">
+        {% for r in userRows %}
+        <tr>
+          <td class="px-4 py-2 whitespace-nowrap"
+              data-user="{{ r.user_name }}">{{ r.user_name }}</td>
+
+          <td class="px-4 py-2 whitespace-nowrap"
+              data-product="{{ r.product_name }}">{{ r.product_name }}</td>
+
+          <td class="px-4 py-2 text-right"
+              data-pct="{{ r.pct_correct is not null ? r.pct_correct|number_format(1) : '' }}">
+            {{ r.pct_correct is not null ? r.pct_correct|number_format(1) ~ '%' : '—' }}
+          </td>
+
+          <td class="px-4 py-2 text-center" data-pass="{{ r.passed }}">
+            {% if r.passed %}<span class="text-green-600 font-semibold">✔</span>
+            {% else %}<span class="text-red-500 font-semibold">✘</span>{% endif %}
+          </td>
+
+          <td class="px-4 py-2 text-right" data-tentativas="{{ r.tentativas }}">
+            {{ r.tentativas }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function userSort(){
+  return{
+    sortKey:'user',asc:false,
+    sort(k){
+      this.asc=(this.sortKey===k)?!this.asc:false;this.sortKey=k;
+      [...this.$refs.body.children]
+        .sort((a,b)=>{
+          const va=a.dataset[k]??a.querySelector('[data-'+k+']')?.dataset[k];
+          const vb=b.dataset[k]??b.querySelector('[data-'+k+']')?.dataset[k];
+          const na=parseFloat(va), nb=parseFloat(vb);
+          let cmp;
+          if(!isNaN(na)&&!isNaN(nb)) cmp=na-nb; else cmp=va.localeCompare(vb);
+          return cmp*(this.asc?1:-1);
+        })
+        .forEach(r=>this.$refs.body.appendChild(r));
+    }
+  };
+}
+</script>

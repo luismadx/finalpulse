@@ -1,0 +1,109 @@
+<style>
+  .sb-open   { width:16rem; }
+  .sb-closed { width:4rem;  }
+  .sidebar-transition{ transition:width .25s ease; }
+</style>
+
+{# rota actual, simplificada para comparação #}
+{% set current = this.page.url|trim('/') %}
+
+<aside id="sidebar"
+       class="sidebar-transition sb-open h-screen bg-slate-800 text-white flex-shrink-0">
+
+  <!-- toggle -->
+  <button id="sbToggle"
+          class="w-full p-4 flex justify-center hover:bg-slate-700 cursor-pointer">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none"
+         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+  </button>
+
+  <nav class="flex flex-col gap-1 px-2 text-sm font-medium">
+
+    {# ── Geral ── #}
+    <a href="/analytics"
+       class="flex items-center gap-2 px-3 py-3 rounded
+              {{ current == 'analytics'
+                   ? 'bg-indigo-600 text-white'
+                   : 'text-gray-300 hover:bg-slate-700' }}">
+      <span class="w-5 flex justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 3v18h18M9 17V9m4 8V5m4 11V13"/>
+        </svg>
+      </span>
+      <span class="sb-label">Geral</span>
+    </a>
+
+    {# ── Avaliação ── #}
+    <a href="/analytics/evaluation"
+       class="flex items-center gap-2 px-3 py-3 rounded
+              {{ current == 'analytics/evaluation'
+                   ? 'bg-indigo-600 text-white'
+                   : 'text-gray-300 hover:bg-slate-700' }}">
+      <span class="w-5 flex justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M5 13l4 4L19 7"/>
+        </svg>
+      </span>
+      <span class="sb-label">Avaliação</span>
+    </a>
+
+    {# ── Utilizadores ── #}
+    <a href="/analytics/users"
+       class="flex items-center gap-2 px-3 py-3 rounded
+              {{ current == 'analytics/users'
+                   ? 'bg-indigo-600 text-white'
+                   : 'text-gray-300 hover:bg-slate-700' }}">
+      <span class="w-5 flex justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 12c2.7 0 4.5-2 4.5-4.5S14.7 3 12 3 7.5 5 7.5 7.5
+                   9.3 12 12 12zm0 2c-3 0-9 1.5-9 4.5V21h18v-2.5c0-3-6-4.5-9-4.5z"/>
+        </svg>
+      </span>
+      <span class="sb-label">Avaliação por utilizador</span>
+    </a>
+
+    {# ── Gráfico ── #}
+    <a href="/analytics/graphs"
+       class="flex items-center gap-2 px-3 py-3 rounded
+              {{ current == 'analytics/graphs'
+                   ? 'bg-indigo-600 text-white'
+                   : 'text-gray-300 hover:bg-slate-700' }}">
+      <span class="w-5 flex justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 3v18h18M9 17V9m4 8V6m4 11V13"/>
+        </svg>
+      </span>
+      <span class="sb-label">Gráficos</span>
+    </a>
+
+  </nav>
+</aside>
+
+<script>
+(function(){
+  const key='sbOpen', sb=document.getElementById('sidebar'),
+        btn=document.getElementById('sbToggle'),
+        labels=sb.querySelectorAll('.sb-label');
+  const set=o=>{
+    sb.classList.toggle('sb-open',o);
+    sb.classList.toggle('sb-closed',!o);
+    labels.forEach(l=>l.style.display=o?'inline':'none');
+  };
+  set(localStorage.getItem(key)!=='0');
+  btn.addEventListener('click',()=>{
+    const o=sb.classList.contains('sb-closed');
+    set(o); localStorage.setItem(key,o?'1':'0');
+  });
+})();
+</script>

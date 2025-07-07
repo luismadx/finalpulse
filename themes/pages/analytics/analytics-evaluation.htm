@@ -1,0 +1,118 @@
+title   = "Dashboard – Avaliação"
+url     = "/analytics/evaluation"
+layout  = "default"
+is_hidden = 0
+==
+<?php
+use DB;
+use Auth;
+use Redirect;
+
+/* ─────────── onStart ─────────── */
+function onStart()
+{
+    $user = Auth::getUser();
+
+    /* bloqueia quem não tem permissão */
+    if (!$user || !$user->groups()->whereIn('code',['product_manager','admin'])->exists()) {
+        return Redirect::to('/');
+    }
+
+    $isAdmin = $user->groups()->where('code','admin')->exists();
+    $uid     = $user->id;
+
+    /* ----- métricas por-produto ----- */
+    $sql = 'SELECT
+              p.id   AS product_id,
+              p.name AS product_name,
+
+              COUNT(DISTINCT CASE WHEN h.questions_total>0 THEN h.user_id END)
+                  AS unique_users,
+
+              AVG(CASE WHEN h.questions_total>0
+                       THEN 100*h.questions_correct/h.questions_total END)
+                  AS avg_questions
+
+            FROM f_products p
+            JOIN f_categories c ON c.id=p.id_categories';
+
+    $params = [];
+    if (!$isAdmin) {
+        $sql   .= ' AND c.user_id = ?';
+        $params[] = $uid;
+    }
+
+    $sql .= ' LEFT JOIN f_historic h ON h.product_id=p.id
+              GROUP BY p.id, p.name
+              ORDER BY p.name';
+
+    $rows = DB::select($sql, $params);
+
+    $eval = collect($rows)->map(function($r){
+        $r->avg_questions = $r->avg_questions ? round($r->avg_questions,1) : 0;
+        return $r;
+    });
+
+    $this['eval'] = $eval;
+    $this['totalsEval'] = (object)[
+        'num_products'  => $eval->count(),
+        'total_users'   => $eval->sum('unique_users'),
+        'avg_questions' => $eval->avg('avg_questions')
+    ];
+}
+
+/* ─────────── AJAX pop-up ─────────── */
+function onGetUserDetails()
+{
+    $user = Auth::getUser();
+    if (!$user || !$user->groups()->whereIn('code',['product_manager','admin'])->exists()) {
+        return ['rows'=>[]];
+    }
+
+    $isAdmin = $user->groups()->where('code','admin')->exists();
+    $uid     = $user->id;
+    $pid     = post('product_id');
+
+    $sql = 'SELECT
+              u.name,
+              (SELECT h2.questions_tried
+                 FROM f_historic h2
+                WHERE h2.user_id=h.user_id AND h2.product_id=h.product_id
+             ORDER BY h2.created_at DESC LIMIT 1)                     AS attempts,
+              MAX(CASE WHEN h.questions_tried>0 THEN 100 ELSE 0 END)  AS pct_completed,
+              100*SUM(CASE WHEN l.seen>0 THEN 1 ELSE 0 END)
+                 / NULLIF(COUNT(l.id),0)                              AS pct_seen,
+              (SELECT 100*h2.questions_correct/NULLIF(h2.questions_total,0)
+                 FROM f_historic h2
+                WHERE h2.user_id=h.user_id AND h2.product_id=h.product_id
+             ORDER BY h2.created_at DESC LIMIT 1)                     AS pct_correct
+            FROM f_historic h
+            JOIN users        u ON u.id=h.user_id
+            JOIN f_products   p ON p.id=h.product_id
+            JOIN f_categories c ON c.id=p.id_categories';
+
+    $params = [];
+    if (!$isAdmin) {
+        $sql   .= ' AND c.user_id = ?';
+        $params[] = $uid;
+    }
+
+    $sql .= ' LEFT JOIN f_historic_lines l ON l.historic_id=h.id
+              WHERE h.product_id = ?
+              GROUP BY u.id, u.name, h.user_id, h.product_id';
+
+    $params[] = $pid;
+
+    $rows = DB::select($sql,$params);
+
+    return ['rows'=>$rows];
+}
+?>
+==
+
+<div class="flex" style="height:calc(100vh - 4rem);">
+  {% partial 'sidebar_analytics' %}
+  <main class="flex-1 overflow-y-auto bg-gray-100">
+    {% partial 'analytics/analytics_eval_content' %}
+  </main>
+</div>

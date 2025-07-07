@@ -1,0 +1,319 @@
+title = "Categorias de Produtos" 
+url = "/categories"
+layout = "default"
+is_hidden = 0
+==
+<?php
+use Finalpulse\Training\Controllers\Categories as CatCtrl;
+
+/* -------- carregamento inicial -------- */
+function onStart()
+{
+    $user = Auth::getUser();
+
+    // Só product_manager ou admin podem ver
+    if (!$user || !$user->groups()->whereIn('code', ['product_manager', 'admin'])->exists()) {
+        return Redirect::to('/');
+    }
+
+    // envia categorias para Twig
+    $this['categories'] = CatCtrl::listForCurrentUser();
+}
+
+/* -------- handlers AJAX -------- */
+function onCreateCategory() { return CatCtrl::onCreateCategory(); }
+function onUpdateCategory() { return CatCtrl::onUpdateCategory(); }
+?>
+==
+<!-- ============================  HTML  ============================ -->
+<div class="container mx-auto p-6">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Categorias</h1>
+
+    <!-- botão que abre o modal de criação -->
+    <button id="openCreateModal"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">
+      + Nova Categoria
+    </button>
+  </div>
+
+  <!-- cartões -->
+  <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for category in categories %}
+      <div class="relative bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-[450px]" data-id="{{ category.id }}">
+        <a href="/products/{{ category.id }}" class="image-container h-[350px] w-full block">
+          {% if category.image %}
+            <img src="/storage/app/public/uploads/categories/{{ category.image }}"
+                 alt="{{ category.name }}" class="w-full h-full object-cover" />
+          {% else %}
+            <div class="h-full w-full bg-gray-100 flex items-center justify-center text-gray-400">
+              Sem imagem
+            </div>
+          {% endif %}
+        </a>
+
+        <div class="p-6 flex-1 flex flex-col justify-between relative">
+          <!-- botão editar -->
+          <button class="edit-btn absolute top-2 right-2 text-gray-500 hover:text-gray-800 cursor-pointer"
+                  data-id="{{ category.id }}"
+                  data-name="{{ category.name }}"
+                  data-description="{{ category.description }}"
+                  data-image="{{ category.image }}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+
+          <div>
+            <h3 class="category-name text-lg font-semibold text-gray-800">{{ category.name }}</h3>
+            <p  class="category-description mt-2 text-sm text-gray-600">{{ category.description }}</p>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p class="text-gray-500 col-span-full">Não há categorias registadas.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- --------------- Modal de criação --------------- -->
+<div id="createModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50">
+  <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+    <button id="closeCreateModal"
+            class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+
+    <h3 class="text-xl font-semibold mb-4 text-gray-800">Nova Categoria</h3>
+
+    <form id="createCategoryForm" method="POST" enctype="multipart/form-data"
+          data-request="onCreateCategory" data-request-files="image: #createImage">
+      <div>
+        <label for="createName" class="block text-gray-700 font-medium">Nome</label>
+        <input type="text" id="createName" name="name"
+               class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+               required />
+      </div>
+
+      <div>
+        <label for="createDescription" class="block text-gray-700 font-medium">Descrição</label>
+        <textarea id="createDescription" name="description"
+                  class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  rows="3"></textarea>
+      </div>
+
+      <!-- preview imagem -->
+      <div>
+        <label class="block text-gray-700 font-medium">Imagem</label>
+        <div id="createImagePreview"
+             class="w-full h-32 bg-gray-100 border-2 border-dashed border-gray-300
+                    flex items-center justify-center text-gray-400 mb-2 cursor-pointer transition-all">
+          Solte a imagem aqui
+        </div>
+        <input type="file" id="createImage" name="image" accept="image/*" class="hidden" />
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">
+          Salvar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- --------------- Modal de edição --------------- -->
+<div id="editModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50">
+  <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+    <button id="closeEditModal"
+            class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+
+    <h3 class="text-xl font-semibold mb-4 text-gray-800">Editar Categoria</h3>
+
+    <form id="editCategoryForm" method="POST" enctype="multipart/form-data"
+          data-request="onUpdateCategory" data-request-files="image: #editImage">
+      <input type="hidden" id="editId" name="id" />
+
+      <div>
+        <label for="editName" class="block text-gray-700 font-medium">Nome</label>
+        <input type="text" id="editName" name="name"
+               class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+               required />
+      </div>
+
+      <div>
+        <label for="editDescription" class="block text-gray-700 font-medium">Descrição</label>
+        <textarea id="editDescription" name="description"
+                  class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  rows="3"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-gray-700 font-medium">Imagem Atual</label>
+        <div id="currentImagePreview"
+             class="w-full h-32 bg-gray-100 border-2 border-dashed border-gray-300
+                    flex items-center justify-center text-gray-400 mb-2 cursor-pointer transition-all">
+          Solte a imagem aqui
+        </div>
+        <input type="file" id="editImage" name="image" accept="image/*" class="hidden" />
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">
+          Atualizar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+#currentImagePreview,
+#createImagePreview { border-color:#d1d5db; }
+#currentImagePreview:hover,
+#createImagePreview:hover { background-color:#f3f4f6; }
+.dragover { background-color:#e0e7ff; border-color:#4f46e5; color:#4f46e5; }
+</style>
+
+{% put scripts %}
+<script>
+$(function(){
+
+let $currentCard=null;
+const $createModal=$('#createModal');
+const $editModal=$('#editModal');
+
+
+
+function cardTemplate(cat) {
+    return `
+      <div class="relative bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-[450px]"
+           data-id="${cat.id}">
+        <a href="/products/${cat.id}" class="image-container h-[350px] w-full block">
+          ${
+            cat.image
+              ? `<img src="/storage/app/public/uploads/categories/${cat.image}" class="w-full h-full object-cover"/>`
+              : `<div class="h-full w-full bg-gray-100 flex items-center justify-center text-gray-400">Sem imagem</div>`
+          }
+        </a>
+        <div class="p-6 flex-1 flex flex-col justify-between relative">
+          <button class="edit-btn absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+                  data-id="${cat.id}"
+                  data-name="${cat.name}"
+                  data-description="${cat.description}"
+                  data-image="${cat.image || ''}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <div>
+            <h3 class="category-name text-lg font-semibold text-gray-800">${cat.name}</h3>
+            <p  class="category-description mt-2 text-sm text-gray-600">${cat.description}</p>
+          </div>
+        </div>
+      </div>`;
+}
+
+
+
+/* ---------- util dropzone ---------- */
+function setupDropZone(preview,fileInput,cb){
+  $(preview).on('dragover',e=>{e.preventDefault();$(preview).addClass('dragover');});
+  $(preview).on('dragleave',e=>{e.preventDefault();$(preview).removeClass('dragover');});
+  $(preview).on('drop',e=>{
+     e.preventDefault();$(preview).removeClass('dragover');
+     const files=e.originalEvent.dataTransfer.files;
+     if(files.length && files[0].type.startsWith('image/')){
+        fileInput[0].files=files; cb(files[0]);
+     }
+  });
+  $(preview).on('click',()=>fileInput.trigger('click'));
+  fileInput.on('change',function(){ this.files[0] && cb(this.files[0]); });
+}
+
+/* ---------- modal criação ---------- */
+$('#openCreateModal').click(()=>{
+  $('#createName,#createDescription').val('');
+  $('#createImage').val(null);
+  $('#createImagePreview').html('<div class="w-full h-full flex items-center justify-center text-gray-400">Solte a imagem aqui</div>');
+  $createModal.removeClass('hidden');
+});
+$('#closeCreateModal').click(()=>$createModal.addClass('hidden'));
+
+//$createModal.on('click',e=>{if(e.target===e.currentTarget)$createModal.addClass('hidden');});
+
+setupDropZone('#createImagePreview',$('#createImage'),file=>{
+   const r=new FileReader();
+   r.onload=e=>$('#createImagePreview').html(`<img src="${e.target.result}" class="w-full h-full object-cover"/>`);
+   r.readAsDataURL(file);
+});
+
+/* ---------- modal edição ---------- */
+$(document).on('click','.edit-btn',function(){
+   const btn=$(this);$currentCard=btn.closest('[data-id]');
+   $('#editId').val(btn.data('id'));
+   $('#editName').val(btn.data('name'));
+   $('#editDescription').val(btn.data('description'));
+   const img=btn.data('image');
+   $('#currentImagePreview').html(
+       img?`<img src="/storage/app/public/uploads/categories/${img}" class="w-full h-full object-cover"/>`
+          :'<div class="w-full h-full flex items-center justify-center text-gray-400">Solte a imagem aqui</div>'
+   );
+   $('#editImage').val(null);
+   $editModal.removeClass('hidden');
+});
+$('#closeEditModal').click(()=>$editModal.addClass('hidden'));
+
+//$editModal.on('click',e=>{if(e.target===e.currentTarget)$editModal.addClass('hidden');});
+
+setupDropZone('#currentImagePreview',$('#editImage'),file=>{
+   const r=new FileReader();
+   r.onload=e=>$('#currentImagePreview').html(`<img src="${e.target.result}" class="w-full h-full object-cover"/>`);
+   r.readAsDataURL(file);
+});
+
+/* ---------- gestão respostas AJAX ---------- */
+$(document).on('ajaxSuccess', function (e, ctx, res) {
+
+    // Winter devolve {result:{…}} quando retornas array simples;
+    // devolve {…} “plano” quando fazes Response::json().
+    const data = res.result || res;
+
+    if (!data.success) return;
+
+    /* ---------- criação ---------- */
+    if (ctx.handler === 'onCreateCategory') {
+        $('#cardsContainer').append(cardTemplate(data));
+        $createModal.addClass('hidden');
+        return; // nada mais a fazer
+    }
+
+    /* ---------- edição ---------- */
+    if (ctx.handler === 'onUpdateCategory') {
+        // garante que encontramos sempre o cartão certo (mesmo que $currentCard falhe)
+        const $card = $(`[data-id="${data.id}"]`);
+        if ($card.length) {
+            $card.replaceWith(cardTemplate(data)); // troca tudo
+        }
+        $editModal.addClass('hidden');
+        $currentCard = null;
+    }
+});
+
+$(document).on('ajaxError',function(e,ctx,xhr){
+   if(xhr.responseJSON && xhr.responseJSON.errors){
+      alert(xhr.responseJSON.errors.join("\\n"));
+   }else if(xhr.responseJSON && xhr.responseJSON.message){
+      alert(xhr.responseJSON.message);
+   }else{
+      alert('Ocorreu um erro.');
+   }
+});
+
+});
+</script>
+{% endput %}

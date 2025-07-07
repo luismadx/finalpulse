@@ -1,0 +1,177 @@
+title = "Registar"
+url   = "/register"
+layout = "clean"
+==
+<?php
+use Illuminate\Support\Str;
+use Winter\Storm\Exception\ValidationException;
+use RainLab\User\Models\User;
+use RainLab\User\Models\UserGroup; // Importante!
+use RainLab\User\Facades\Auth;
+use Winter\Storm\Support\Facades\Flash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Redirect;
+
+/* onStart: impede utilizador autenticado e prepara token CSRF */
+function onStart()
+{
+    $user = Auth::getUser();
+
+    // se não estiver logado ou não for product_manager nem admin, manda pra home
+    if ($user) {
+        return Redirect::to('/');
+    }
+
+    $this['csrf'] = csrf_token();
+}
+
+/* onRegister: valida inputs, cria utilizador e envia email de ativação */
+function onRegister()
+{
+    $data = post();
+
+    // Validação sem password
+    $rules = [
+        'username' => 'required|min:2|unique:users,username',
+        'name'     => 'required|min:2',
+        'email'    => 'required|email|unique:users,email',
+    ];
+
+    $validator = Validator::make($data, $rules);
+    if ($validator->fails()) {
+        throw new ValidationException($validator);
+    }
+
+    // Gera password temporária
+    $tempPassword = Str::random(12);
+
+    // Cria o utilizador com is_activated = false
+    $user = User::create([
+        'username'              => $data['username'],
+        'name'                  => $data['name'],
+        'email'                 => $data['email'],
+        'password'              => $tempPassword,
+        'password_confirmation' => $tempPassword,
+        'is_activated'          => false,
+    ]);
+
+    // Agora define activation_code e guarda
+    $user->activation_code = Str::random(40);
+    $user->save(); // Salva diretamente
+
+    // Associa a role "registered"
+    $role = \RainLab\User\Models\UserGroup::where('code', 'registered')->first();
+    if ($role) {
+        $user->groups()->attach($role);
+    }
+
+    // Gera URL de ativação
+    $activationUrl = url('/account/'.$user->activation_code);
+
+    try {
+        Mail::send('winter.user::mail.activate', [
+            'user'          => $user,
+            'activationUrl' => $activationUrl
+        ], function($m) use($user) {
+            $m->to($user->email, $user->name);
+        });
+
+        Flash::success('Registo concluído! Verifica o teu email para ativar a conta.');
+
+        return [
+            'success' => true,
+            'message' => 'Registo concluído! Verifica o teu email para ativar a conta.',
+            'redirectUrl' => '/login'
+        ];
+    }
+    catch (\Exception $e) {
+        Flash::error('Erro ao enviar o e-mail de ativação.');
+    }
+}
+?>
+==
+
+<section class="flex min-h-screen items-start justify-center bg-gray-100 pt-[80px] pb-8">
+    <div class="w-full max-w-6xl rounded-2xl bg-white shadow-lg overflow-hidden lg:grid lg:grid-cols-2">
+        <!-- Formulário -->
+        <div class="px-10 py-12 lg:px-14">
+
+            <img src="{{ 'assets/imgs/finalpulse.svg'|theme }}" id="logo"
+                 alt="Logo"
+                 class="h-16 mb-8">
+
+            <h2 class="text-2xl font-bold tracking-tight text-gray-900">Criar conta</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Já tens conta?
+                <a href="/login" class="font-medium text-indigo-600 hover:text-indigo-500">Inicia sessão</a>
+            </p>
+
+            <form data-request="onRegister"
+                  data-request-validate
+                  data-request-flash
+                  class="mt-8 space-y-5">
+                <input type="hidden" name="_token" value="{{ csrf }}">
+
+                <!-- Username -->
+                <div class="flex items-center gap-4">
+                    <label for="username" class="w-40 text-sm font-medium text-gray-700">Username</label>
+                    <input id="username" name="username" type="text" required autocomplete="username"
+                           class="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm
+                                  focus:border-indigo-500 focus:ring-indigo-500">
+                    <span data-validate-for="username" class="text-xs text-red-600"></span>
+                </div>
+
+                <!-- Nome -->
+                <div class="flex items-center gap-4">
+                    <label for="name" class="w-40 text-sm font-medium text-gray-700">Nome</label>
+                    <input id="name" name="name" type="text" required autocomplete="name"
+                           class="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm
+                                  focus:border-indigo-500 focus:ring-indigo-500">
+                    <span data-validate-for="name" class="text-xs text-red-600"></span>
+                </div>
+
+                <!-- Email -->
+                <div class="flex items-center gap-4" style="margin-bottom: 50px;">
+                    <label for="email" class="w-40 text-sm font-medium text-gray-700">Email</label>
+                    <input id="email" name="email" type="email" required autocomplete="email"
+                           class="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm
+                                  focus:border-indigo-500 focus:ring-indigo-500">
+                    <span data-validate-for="email" class="text-xs text-red-600"></span>
+                </div>
+
+
+                <button type="submit"
+                        class="mt-4 flex w-full justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm
+                               font-medium text-white shadow-sm hover:bg-indigo-700 transition">
+                    Registar
+                </button>
+            </form>
+
+            {% flash success %}
+                {% if type != 'success' %}
+                    <p class="mt-6 text-center text-green-600">{{ message }}</p>
+                {% endif %}
+            {% endflash %}
+        </div>
+
+        <!-- Imagem -->
+        <div class="hidden lg:block">
+            <img src="{{ 'assets/imgs/register.jpg'|theme }}"
+                 alt=""
+                 class="h-full w-full object-cover">
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('ajaxUpdate', () => {
+    const f = document.querySelector('[data-control="flash-message"]');
+    if (f) setTimeout(() => f.remove(), 3000);
+});
+  
+  $(function(){
+    $('#logo').addClass('pulse');
+  });
+
+</script>

@@ -1,0 +1,102 @@
+title   = "Dashboard – Gráficos"
+url     = "/analytics/graphs"
+layout  = "default"
+title   = "Dashboard – Gráficos"
+url     = "/analytics/graphs"
+layout  = "default"
+is_hidden = 0
+==
+<?php
+use DB;
+use Auth;
+use Redirect;
+
+/* ------------- onStart ------------- */
+function onStart()
+{
+    $user = Auth::getUser();
+
+    /* bloqueia quem não pertence aos grupos exigidos */
+    if (!$user || !$user->groups()->whereIn('code',['product_manager','admin'])->exists()) {
+        return Redirect::to('/');
+    }
+
+    $isAdmin = $user->groups()->where('code','admin')->exists();
+    $uid     = $user->id;
+
+    /* --------- métricas por-produto --------- */
+    $sql = 'SELECT
+               p.id, p.name,
+               COUNT(DISTINCT h.user_id) AS users,
+               AVG(CASE WHEN h.questions_total>0
+                        THEN 100*h.questions_correct/h.questions_total END) AS pct_questions,
+               COUNT(DISTINCT CASE WHEN h.questions_tried>0 THEN h.user_id END) AS users_completed,
+               SUM(CASE WHEN l.seen>0 THEN 1 ELSE 0 END) AS seen_lines,
+               COUNT(l.id) AS total_lines
+            FROM f_products p
+            JOIN f_categories c ON c.id = p.id_categories';
+    $params = [];
+
+    if (!$isAdmin) {
+        $sql   .= ' AND c.user_id = ?';
+        $params[] = $uid;
+    }
+
+    $sql .= ' LEFT JOIN f_historic h       ON h.product_id = p.id
+              LEFT JOIN f_historic_lines l ON l.historic_id = h.id
+              GROUP BY p.id, p.name';
+
+    $rows  = DB::select($sql, $params);
+    $coll  = collect($rows)->map(function($r){
+        $r->pct_completed = $r->users
+            ? round(100*$r->users_completed/$r->users,1) : 0;
+        return $r;
+    });
+
+    /* ----- Top-10 audiência ----- */
+    $topUsers    = $coll->sortByDesc('users')->take(10);
+    $labelsTop   = $topUsers->pluck('name')->map(fn($s)=>e($s))->values();
+    $usersTop    = $topUsers->pluck('users')->values();
+    $outrosUsers = $coll->sum('users') - $usersTop->sum();
+
+    /* ----- Distribuição conclusão ----- */
+    $bucketsComp = [
+        $coll->where('pct_completed','<',25)->count(),
+        $coll->whereBetween('pct_completed',[25,49.999])->count(),
+        $coll->whereBetween('pct_completed',[50,74.999])->count(),
+        $coll->where('pct_completed','>=',75)->count(),
+    ];
+
+    /* ----- Top-10 % Questões ----- */
+    $topQ        = $coll->whereNotNull('pct_questions')
+                        ->sortByDesc('pct_questions')->take(10);
+    $labelsQTop  = $topQ->pluck('name')->map(fn($s)=>e($s))->values();
+    $pctQTop     = $topQ->pluck('pct_questions')->map(fn($v)=>round($v,1))->values();
+
+    /* ----- Distribuição % Questões ----- */
+    $bucketsQuest = [
+        $coll->where('pct_questions','<',25)->count(),
+        $coll->whereBetween('pct_questions',[25,49.999])->count(),
+        $coll->whereBetween('pct_questions',[50,74.999])->count(),
+        $coll->where('pct_questions','>=',75)->count(),
+    ];
+
+    /* ----- exporta p/ JS ----- */
+    $this['labelsTop']    = $labelsTop  ->toJson();
+    $this['usersTop']     = $usersTop   ->toJson();
+    $this['outrosUsers']  = $outrosUsers;
+    $this['bucketsComp']  = json_encode($bucketsComp);
+
+    $this['labelsQTop']   = $labelsQTop ->toJson();
+    $this['pctQTop']      = $pctQTop    ->toJson();
+    $this['bucketsQuest'] = json_encode($bucketsQuest);
+}
+?>
+==
+<div class="flex overflow-hidden" style="height:calc(100vh - 5rem);">
+  {% partial 'sidebar_analytics' %}
+
+  <main class="flex-1 overflow-y-auto bg-gray-100">
+    {% partial 'analytics/analytics_graphs' %}
+  </main>
+</div>

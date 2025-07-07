@@ -1,0 +1,133 @@
+{# ======================================================================
+   PARCIAL: 4 gráficos compactos (2 na 1ª linha, 2 na 2ª)
+   Variáveis que a página deve enviar:
+     • labelsTop, usersTop, outrosUsers
+     • bucketsComp  – distribuição % Concluído  (4 valores)
+     • labelsQTop, pctQTop
+     • bucketsQuest – distribuição % Questões correctas (4 valores)
+   ====================================================================== #}
+
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@4.1.0/dist/tailwind.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<div class="container mx-auto px-4 py-6 grid gap-6
+            grid-cols-1 md:grid-cols-2">
+
+  <!-- ────────────────── 1. Top-10 Utilizadores ────────────────── -->
+  <div class="bg-white shadow rounded-lg p-5">
+    <h3 class="font-semibold mb-4">Top 10 Produtos visualizados por utilizadores</h3>
+    <div class="h-80"><canvas id="barUsers"></canvas></div>
+  </div>
+
+  <!-- ────────────────── 2. Top-10 % Questões Corretas ───────────── -->
+  <div class="bg-white shadow rounded-lg p-5">
+    <h3 class="font-semibold mb-4">Top 10 % Questões Corretas</h3>
+    <div class="h-80"><canvas id="barQuestions"></canvas></div>
+  </div>
+
+  <!-- ────────────────── 3. Distribuição % Concluído ─────────────── -->
+  <div class="bg-white shadow rounded-lg p-5">
+    <h3 class="font-semibold mb-4">Distribuição % Concluído</h3>
+    <div class="h-64 w-64 mx-auto">
+      <canvas id="doughnutComp"></canvas>
+    </div>
+  </div>
+
+  <!-- ────────────────── 4. Distribuição % Questões Corretas ──────── -->
+  <div class="bg-white shadow rounded-lg p-5">
+    <h3 class="font-semibold mb-4">Distribuição % Questões Corretas</h3>
+    <div class="h-64 w-64 mx-auto">
+      <canvas id="doughnutQuest"></canvas>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* dados do PHP */
+  const labelsTop   = {{ labelsTop   | raw }};
+  const usersTop    = {{ usersTop    | raw }};
+  const outrosUsers = {{ outrosUsers }};
+  const labelsQTop  = {{ labelsQTop  | raw }};
+  const pctQTop     = {{ pctQTop     | raw }};
+  const bucketsComp = {{ bucketsComp | raw }};
+  const bucketsQuest= {{ bucketsQuest| raw }};
+
+  /* 1) Barra horizontal – Utilizadores */
+  new Chart('barUsers', {
+    type:'bar',
+    data:{
+      labels:[...labelsTop,'Outros'],
+      datasets:[{ data:[...usersTop, outrosUsers], backgroundColor:'#6366F1' }]
+    },
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ beginAtZero:true } }
+    }
+  });
+
+  /* 2) Barra horizontal – % Questões */
+  new Chart('barQuestions', {
+    type:'bar',
+    data:{
+      labels:labelsQTop,
+      datasets:[{ data:pctQTop, backgroundColor:'#4F46E5' }]
+    },
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ beginAtZero:true, max:100 } }
+    }
+  });
+
+  /* 3) Doughnut % Concluído */
+  new Chart('doughnutComp', {
+    type: 'doughnut',
+    data: {
+      labels: ['<25 %','25-50 %','50-75 %','≥75 %'],
+      datasets: [{
+        data: bucketsComp,
+        backgroundColor: ['#F87171','#FBBF24','#60A5FA','#34D399']
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: {
+          position: 'right',
+          align: 'center'
+        }
+      }
+    }
+  });
+
+  /* 4) Doughnut % Questões correctas */
+  new Chart('doughnutQuest', {
+    type:'doughnut',
+    data:{
+      labels:['<25 %','25-50 %','50-75 %','≥75 %'],
+      datasets:[{ data:bucketsQuest,
+                  backgroundColor:['#F87171','#FBBF24','#60A5FA','#34D399'] }]
+    },
+    options:{
+      maintainAspectRatio:false,
+      cutout:'60%',
+      plugins: {
+        legend: {
+          position: 'right',
+          align: 'center'
+        }
+      }
+    }
+  });
+
+});
+</script>
