@@ -1,0 +1,145 @@
+{# ======================================================
+   Avaliação – cartões + tabela + pop-up (funciona isolado)
+   ====================================================== #}
+
+<div class="container mx-auto px-4 py-6" x-data="evalSort()">
+
+  <!-- KPIs -->
+  <div class="grid gap-4 grid-cols-1 md:grid-cols-3 mb-8">
+    <div class="bg-white shadow rounded-lg p-5">
+      <p class="text-sm text-gray-500">Produtos</p>
+      <p class="text-2xl font-semibold">{{ totalsEval.num_products }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-5">
+      <p class="text-sm text-gray-500">Utilizadores únicos</p>
+      <p class="text-2xl font-semibold">{{ totalsEval.total_users }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-5">
+      <p class="text-sm text-gray-500">Questões % média</p>
+      <p class="text-2xl font-semibold">
+        {{ totalsEval.avg_questions|number_format(1) }}%
+      </p>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50 text-gray-700 text-sm font-semibold">
+          <tr>
+            <th class="px-4 py-3 cursor-pointer select-none" @click="sort('name')">
+              <span class="inline-flex items-center">
+                Produto
+                <svg x-show="sortKey==='name'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+            <th class="px-2 py-3 text-center cursor-pointer select-none" @click="sort('users')">
+              <span class="inline-flex items-center">
+                Utilizadores
+                <svg x-show="sortKey==='users'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+            <th class="px-6 py-3 text-center cursor-pointer select-none" @click="sort('avgq')">
+              <span class="inline-flex items-center">
+                Questões %
+                <svg x-show="sortKey==='avgq'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-gray-100 text-sm" x-ref="body">
+          {% for r in eval %}
+          <tr>
+            <!-- render directo em vez de x-text -->
+            <td class="px-4 py-3 whitespace-nowrap">{{ r.product_name }}</td>
+
+            <td class="px-2 py-2 text-center">
+              <button class="px-2 py-[2px] text-xs rounded bg-indigo-600 text-white
+                             hover:bg-indigo-700"
+                      @click="loadUsers('{{ r.product_id }}')">
+                {{ r.unique_users }}
+              </button>
+            </td>
+
+            <td class="px-6 py-3 text-center font-medium">
+              {{ r.avg_questions|number_format(1) }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- função global para o pop-up (reutilizada) ---------- */
+window.loadUsersEval = function(pid){
+  $.request('onGetUserDetails', {
+    data:{ product_id: pid },
+    success:r=>{
+      const rows = r.rows || [];
+      if(!rows.length){
+        Swal.fire('Sem dados','Nenhum registo para este conteúdo.','info');
+        return;
+      }
+      let html = `<div class="overflow-x-auto"><table class="min-w-full text-xs">
+        <thead class="bg-gray-50 font-semibold"><tr>
+          <th class="px-3 py-1">Utilizador</th>
+          <th class="px-3 py-1 text-right">Tentativas</th>
+          <th class="px-3 py-1 text-right">% Concl.</th>
+          <th class="px-3 py-1 text-right">% Visto</th>
+          <th class="px-3 py-1 text-right">Questões %</th>
+        </tr></thead><tbody>`;
+      rows.forEach(u=>{
+        const fmt=v=>isNaN(v)?'—':(+v).toFixed(1)+'%';
+        html+=`<tr>
+          <td class="px-3 py-1">${u.name}</td>
+          <td class="px-3 py-1 text-right">${u.attempts??'—'}</td>
+          <td class="px-3 py-1 text-right">${fmt(u.pct_completed)}</td>
+          <td class="px-3 py-1 text-right">${fmt(u.pct_seen)}</td>
+          <td class="px-3 py-1 text-right">${fmt(u.pct_correct)}</td>
+        </tr>`;
+      });
+      html+='</tbody></table></div>';
+      Swal.fire({title:'Utilizadores',html,width:650,showCloseButton:true});
+    },
+    error:x=>Swal.fire('Erro',x.responseText,'error')
+  });
+};
+
+/* ---------- Alpine para ordenar ---------- */
+function evalSort(){
+  return{
+    sortKey:'avgq', asc:false,
+    sort(k){
+      this.asc=(this.sortKey===k)?!this.asc:false; this.sortKey=k;
+      const idx={name:0,users:1,avgq:2}[k];
+      [...this.$refs.body.children].sort((a,b)=>{
+        let va=a.children[idx].innerText.trim(), vb=b.children[idx].innerText.trim();
+        const na=parseFloat(va), nb=parseFloat(vb);
+        if(!isNaN(na)&&!isNaN(nb)){va=na;vb=nb;}
+        return (va>vb?1:va<vb?-1:0)*(this.asc?1:-1);
+      }).forEach(r=>this.$refs.body.appendChild(r));
+    },
+    loadUsers: pid => window.loadUsersEval(pid)
+  }
+}
+</script>

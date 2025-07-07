@@ -1,0 +1,61 @@
+title   = "Dashboard – Utilizadores"
+url     = "/analytics/users"
+layout  = "default"
+is_hidden = 0
+==
+<?php
+use DB;
+use Auth;
+use Redirect;
+
+/* --------------- onStart --------------- */
+function onStart()
+{
+    $user = Auth::getUser();
+    if (!$user || !$user->groups()->whereIn('code',['product_manager','admin'])->exists()) {
+        return Redirect::to('/');
+    }
+    $isAdmin = $user->groups()->where('code','admin')->exists();
+    $uid     = $user->id;
+
+    $sql = 'SELECT
+               u.name              AS user_name,
+               p.name              AS product_name,
+               h.created_at        AS last_session,
+               100*h.questions_correct/NULLIF(h.questions_total,0) AS pct_correct,
+               CASE WHEN h.questions_total>0
+                    THEN (h.questions_correct/h.questions_total>=0.5)
+                    ELSE 0 END      AS passed,
+               h.questions_tried   AS tentativas
+            FROM f_historic h
+            JOIN users      u ON u.id = h.user_id
+            JOIN f_products p ON p.id = h.product_id
+            JOIN f_categories c ON c.id = p.id_categories';
+
+    $params = [];
+    if (!$isAdmin) {
+        $sql   .= ' AND c.user_id = ?';
+        $params[] = $uid;
+    }
+
+    $sql .= ' WHERE h.created_at = (
+                  SELECT MAX(h2.created_at)
+                    FROM f_historic h2
+                   WHERE h2.user_id    = h.user_id
+                     AND h2.product_id = h.product_id)
+              ORDER BY u.name, p.name';
+
+    $rows = DB::select($sql, $params);
+    $this['userRows'] = $rows;
+}
+
+
+?>
+==
+<div class="flex" style="height:calc(100vh - 4rem);">
+  {% partial 'sidebar_analytics' %}
+
+  <main class="flex-1 overflow-y-auto bg-gray-100">
+    {% partial 'analytics/analytics_users_content' %}
+  </main>
+</div>

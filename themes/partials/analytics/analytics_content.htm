@@ -1,0 +1,215 @@
+{# -----------------------------------------------------------------
+   PARCIAL: cartões KPI + tabela + JS  (usa variáveis totals/general
+   que a página já passa ao Twig)
+   ----------------------------------------------------------------- #}
+
+<div class="container mx-auto px-4 py-6" x-data="tableSort()">
+
+  {# ---------- CARDS ---------- #}
+<div class="grid gap-4 grid-cols-1 md:grid-cols-3 mb-8">
+  <div class="bg-white shadow rounded-lg p-5">
+    <p class="text-sm text-gray-500">Produtos</p>
+    <p class="text-2xl font-semibold">{{ totals.num_products }}</p>
+  </div>
+  <div class="bg-white shadow rounded-lg p-5">
+    <p class="text-sm text-gray-500">Utilizadores únicos</p>
+    <p class="text-2xl font-semibold">{{ totals.total_users }}</p>
+  </div>
+
+  <div class="bg-white shadow rounded-lg p-5">
+    <p class="text-sm text-gray-500">Conclusão média</p>
+    <p class="text-2xl font-semibold">
+      {{ totals.avg_completion is not null
+           ? totals.avg_completion|number_format(1) ~ '%' : '—' }}
+    </p>
+  </div>  
+
+</div>
+
+  {# ---------- TABELA ---------- #}
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50 text-gray-700 text-sm font-semibold">
+          <tr>
+            <th class="px-4 py-3 max-w-[8rem] truncate whitespace-nowrap md:max-w-none
+                       cursor-pointer select-none"
+                @click="sort('name')">
+              <span class="inline-flex items-center">
+                Produto
+                <svg x-show="sortKey==='name'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+            <th class="px-2 py-2 w-14 md:w-auto text-center cursor-pointer select-none"
+                @click="sort('users')">
+              <span class="inline-flex items-center">
+                Utilizadores
+                <svg x-show="sortKey==='users'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+            <th class="px-6 py-3 text-center cursor-pointer select-none"
+                @click="sort('pct')">
+              <span class="inline-flex items-center">
+                % Concluído
+                <svg x-show="sortKey==='pct'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+            <th class="px-6 py-3 text-center cursor-pointer select-none"
+                @click="sort('seen')">
+              <span class="inline-flex items-center">
+                % Vistos
+                <svg x-show="sortKey==='seen'" :class="asc ? 'rotate-180':''"
+                     class="w-4 h-4 ml-1 transition-transform" fill="none"
+                     stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 15l7-7 7 7"/>
+                </svg>
+              </span>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-gray-100 text-sm" x-ref="body">
+          {% for r in general %}
+          <tr>
+            <td class="px-4 py-3 max-w-[8rem] truncate whitespace-nowrap md:max-w-none"
+                x-text="'{{ r.product_name|e('js') }}'"></td>
+
+            {# Utilizadores – botão abre pop-up #}
+            <td class="px-2 py-2 w-14 md:w-auto text-center">
+              <button
+                class="inline-block px-2 py-[2px] rounded bg-indigo-600 text-white text-xs font-semibold
+                       hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                @click="loadUsers('{{ r.product_id }}')">
+                {{ r.unique_users }}
+              </button>
+            </td>
+
+            {# % Concluído #}
+            <td class="px-6 py-4">
+              <div class="hidden md:flex items-center gap-2 max-w-xs w-full">
+                <div class="flex-1 bg-gray-200 h-2 rounded-full overflow-hidden">
+                  <div class="h-full bg-blue-500"
+                       style="width: {{ r.pct_completed }}%;"></div>
+                </div>
+                <span class="shrink-0 text-xs font-medium">
+                  {{ r.pct_completed|number_format(1) }}%
+                </span>
+              </div>
+              <span class="md:hidden text-xs font-medium">
+                {{ r.pct_completed|number_format(1) }}%
+              </span>
+            </td>
+
+            {# % Vistos #}
+            <td class="px-6 py-4">
+              <div class="hidden md:flex items-center gap-2 max-w-xs w-full">
+                <div class="flex-1 bg-gray-200 h-2 rounded-full overflow-hidden">
+                  <div class="h-full bg-blue-500"
+                       style="width: {{ r.pct_seen }}%;"></div>
+                </div>
+                <span class="shrink-0 text-xs font-medium">
+                  {{ r.pct_seen|number_format(1) }}%
+                </span>
+              </div>
+              <span class="md:hidden text-xs font-medium">
+                {{ r.pct_seen|number_format(1) }}%
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ---------- JS Alpine + SweetAlert ---------- #}
+<script>
+function tableSort () {
+  return {
+    sortKey : 'users',
+    asc     : false,
+
+    sort (key) {
+      this.asc     = (this.sortKey === key) ? !this.asc : false;
+      this.sortKey = key;
+      const idx    = { name:0, users:1, pct:2, seen:3 }[key];
+
+      [...this.$refs.body.children]
+        .sort((a,b)=>{
+          let va=a.children[idx].innerText.trim(),
+              vb=b.children[idx].innerText.trim();
+          const na=parseFloat(va), nb=parseFloat(vb);
+          if(!isNaN(na)&&!isNaN(nb)){va=na;vb=nb;}
+          return (va>vb?1:va<vb?-1:0)*(this.asc?1:-1);
+        })
+        .forEach(r=>this.$refs.body.appendChild(r));
+    },
+
+    loadUsers (pid) {
+      $.request('onGetUserDetails', {
+        data:{ product_id: pid },
+        success:(r)=>{
+          const rows = r.rows || [];
+          if(!rows.length){
+            Swal.fire('Sem dados','Nenhum registo para este conteúdo.','info');
+            return;
+          }
+
+          let html = `<div class="overflow-x-auto"><table class="min-w-full text-xs text-left whitespace-nowrap">
+            <thead class="bg-gray-50 font-semibold">
+              <tr>
+                <th class="px-3 py-1">Utilizador</th>
+                <th class="px-3 py-1 text-right">Tentativas</th>
+                <th class="px-3 py-1 text-right">% Concl.</th>
+                <th class="px-3 py-1 text-right">% Visto</th>
+                <th class="px-3 py-1 text-right">Questões&nbsp;%</th>
+              </tr>
+            </thead><tbody>`;
+
+          rows.forEach(u=>{
+            const pctComp = parseFloat(u.pct_completed);
+            const pctSeen = parseFloat(u.pct_seen);
+            const pctQ    = parseFloat(u.pct_correct);
+
+            html += `<tr>
+              <td class="px-3 py-1">${u.name}</td>
+              <td class="px-3 py-1 text-right">${u.attempts ?? '—'}</td>
+              <td class="px-3 py-1 text-right">${isNaN(pctComp)?'—':pctComp.toFixed(1)+'%'}</td>
+              <td class="px-3 py-1 text-right">${isNaN(pctSeen)?'—':pctSeen.toFixed(1)+'%'}</td>
+              <td class="px-3 py-1 text-right">${isNaN(pctQ)?'—':pctQ.toFixed(1)+'%'}</td>
+            </tr>`;
+          });
+
+          html += '</tbody></table></div>';
+
+          Swal.fire({
+            title:'Utilizadores',
+            html,
+            width:650,
+            showCloseButton:true,
+            confirmButtonText:'Fechar'
+          });
+        },
+        error:(xhr)=>Swal.fire('Erro',xhr.responseText,'error')
+      });
+    }
+  };
+}
+</script>

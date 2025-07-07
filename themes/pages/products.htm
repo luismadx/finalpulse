@@ -1,0 +1,339 @@
+title = "Teste Admin Produtos" 
+url = "/products/:id_categories"
+layout = "default"
+is_hidden = 0
+==
+<?php
+use Finalpulse\Training\Controllers\Products;
+
+/* Verifica permissão e carrega lista de produtos da categoria */
+function onStart()
+{
+    $u = Auth::getUser();
+    if(!$u || !$u->groups()->whereIn('code',['product_manager','admin'])->exists())
+        return Redirect::to('/');
+
+    $this['products'] = Products::listByCategory($this->param('id_categories'));
+}
+
+/* Guarda dados do produto recebido */
+function onSaveProduct(){ return Products::save(post()); }
+
+/* Obtém um produto pelo ID */
+function onGetProduct(){ return Products::find(post('id')); }
+?>
+==
+
+<<!-- icons para a página -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="icon-preview" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7 c-1.274 4.057-5.065 7-9.542 7s-8.268-2.943-9.542-7z"/>
+    </symbol>
+  </svg>
+
+  <svg xmlns="http://www.w3.org/2000/svg"  style="display:none;">
+  <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5
+             M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </symbol>
+  </svg>
+
+
+<!-- botão + Produto e cards inalterados -->
+<div class="container mx-auto p-6">
+  <div class="flex justify-between mb-6">
+    <h1 class="text-2xl font-bold">Produtos: {{ categoryName }}</h1>
+    <button id="openModal" class="px-4 py-2 bg-indigo-600 text-white rounded">+ Produto</button>
+  </div>
+  <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+<!-- dentro de #cardsContainer -->
+{% for p in products %}
+  <div class="bg-white shadow rounded overflow-hidden flex flex-col" data-id="{{ p.id }}">
+    <a href="/editor/{{ p.slug }}/1" class="block h-60 overflow-hidden group">
+      {% if p.image %}
+        <img src="/storage/app/public/uploads/products/{{ p.image }}"
+             class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"/>
+      {% else %}
+        <div class="w-full h-full bg-gray-100 flex items-center justify-center">Sem imagem</div>
+      {% endif %}
+    </a>
+
+    <div class="p-4 flex-1 flex flex-col justify-between"
+         {% if p.published %}style="background-color:#d4e7d4;"{% endif %}>
+      <h3 class="font-semibold text-lg">{{ p.name }}</h3>
+      <p class="text-sm text-gray-600">{{ p.description }}</p>
+
+      <div class="flex gap-2 mt-3">
+        <button class="edit-btn text-gray-500 hover:text-gray-800 cursor-pointer"
+                data-id="{{ p.id }}"
+                data-name="{{ p.name }}"
+                data-description="{{ p.description }}"
+                data-slug="{{ p.slug }}">
+          <svg class="h-5 w-5"><use href="#icon-edit" /></svg>
+        </button>
+
+        <button onclick="window.location.href='/qr/{{ p.id }}'"
+                class="qr-btn text-gray-500 hover:text-gray-800 cursor-pointer">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd"
+                  d="M9.75 5.25H5.25V9.75H9.75V5.25ZM3.75 3.75V11.25H11.25V3.75H3.75ZM9.75 14.25H5.25V18.75H9.75V14.25ZM3.75 12.75V20.25H11.25V12.75H3.75ZM14.25 5.25H18.75V9.75H14.25V5.25ZM12.75 11.25V3.75H20.25V11.25H12.75ZM12.75 17.25V12.75H14.25V17.25H12.75ZM6.75 6.75V8.25H8.25V6.75H6.75ZM6.75 17.25V15.75H8.25V17.25H6.75ZM15.75 6.75V8.25H17.25V6.75H15.75ZM18.75 20.25V18H20.25V20.25H18.75ZM18.75 12.75V15H17.25V12.75H15.75V18.75H12.75V20.25H17.25V16.5H20.25V15V12.75H18.75Z"
+                  fill="#080341"/>
+          </svg>
+        </button>
+
+        <button onclick="window.location.href='/training/{{ p.slug }}/0'"
+                class="preview-btn text-gray-500 hover:text-gray-800 cursor-pointer">
+          <svg class="h-5 w-5"><use href="#icon-preview" /></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+
+
+
+  </div>
+</div>
+
+<!-- MODAL DE PRODUTO -->
+<div id="productModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 hidden">
+  <div class="bg-white rounded-lg shadow-xl w-11/12 sm:w-5/6 md:w-2/3 lg:w-3/5 max-w-3xl relative">
+    <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
+      <h3 id="modalTitle" class="text-lg font-semibold"></h3>
+      <button id="closeModal" class="text-2xl leading-none">&times;</button>
+    </div>
+    <form id="productForm" method="POST" enctype="multipart/form-data" data-request="onSaveProduct" data-request-files="image:#prodImage" class="h-[60vh] overflow-y-scroll px-6 space-y-6">
+      <input type="hidden" id="prodId" name="id">
+      <input type="hidden" name="id_categories" value="{{ this.param.id_categories }}">
+
+      <div class="border-b border-gray-200">
+        <ul class="flex text-sm font-medium text-center text-gray-500" id="tabHeaders">
+          <li class="me-2">
+            <button type="button" class="tabBtn cursor-pointer inline-block p-3 rounded-t-lg border-b-2 border-indigo-600 text-indigo-600" data-tab="tab1">Geral</button>
+          </li>
+          <li class="me-2">
+            <button type="button" class="tabBtn cursor-pointer inline-block p-3 rounded-t-lg hover:text-indigo-600 hover:border-indigo-600 border-b-2 border-transparent" data-tab="tab2">Página Intro</button>
+          </li>
+          <li class="me-2">
+            <button type="button" class="tabBtn cursor-pointer inline-block p-3 rounded-t-lg hover:text-indigo-600 hover:border-indigo-600 border-b-2 border-transparent" data-tab="tab3">Página Final</button>
+          </li>
+        </ul>
+      </div>
+
+      <div id="tab1" class="tabContent">
+        <div class="flex items-center mb-4">
+          <div id="imgPreview" class="w-24 h-24 bg-gray-100 flex items-center justify-center rounded overflow-hidden">Sem imagem</div>
+          <label for="prodImage" class="ml-4 px-4 py-2 bg-indigo-600 text-white rounded cursor-pointer">Upload</label>
+          <input type="file" id="prodImage" name="image" accept="image/*" class="hidden">
+        </div>
+
+        <div class="grid grid-cols-[auto_2fr] gap-x-4 gap-y-2">
+          <label for="prodName" class="self-center">Nome do Produto <span class="text-red-500 ml-1">*</span></label>
+          <input type="text" id="prodName" name="name" class="border p-2 rounded w-full" required>
+
+          <label class="self-center">Descrição</label>
+          <textarea id="prodDesc" name="description" rows="2" class="border p-2 rounded w-full"></textarea>
+
+          <label class="self-center">Duração Estimada (min)</label>
+          <input type="number" id="prodMins" name="minutes" class="border p-2 rounded w-full">
+        </div>
+      </div>
+
+      <div id="tab2" class="tabContent hidden">
+         <div class="grid grid-cols-[auto_2fr] gap-x-4 gap-y-2">
+          <label class="self-center">Titulo</label>
+          <input type="text" id="prodIT" name="intro_title" class="border p-2 rounded w-full">
+
+          <label class="self-center">Subtitulo</label>
+          <input type="text" id="prodIST" name="intro_subtitle" class="border p-2 rounded w-full">
+
+          <label class="self-center">Acção Formativa</label>
+          <input type="text" id="prodIA" name="intro_action" class="border p-2 rounded w-full">
+
+          <label class="self-center">Descrição do Tema</label>
+          <input type="text" id="prodIAD" name="intro_action_description" class="border p-2 rounded w-full">
+
+          <label class="self-center">Objetivos de Aprendizagem</label>
+          <textarea id="prodILO" name="intro_learning_objectives" rows="2" class="border p-2 rounded w-full"></textarea>
+
+          <label class="self-center">Tempo de Conclusão Estimada</label>
+          <input type="text" id="prodIED" name="intro_estimated_duration" class="border p-2 rounded w-full">
+
+          <label class="self-center">Estrutura do Conteúdo</label>
+          <textarea id="prodICS" name="intro_course_structure" rows="3" class="border p-2 rounded w-full"></textarea>
+
+          <label class="self-center">Nota Importante</label>
+          <input type="text" id="prodIW" name="intro_warning" class="border p-2 rounded w-full">
+
+          <label class="self-center">Destalhes da Nota</label>
+          <input type="text" id="prodIWD" name="intro_warning_description" class="border p-2 rounded w-full">
+
+          <label class="self-center">Texto Botão "Iniciar"</label>
+          <input type="text" id="prodIBS" name="intro_button_start" class="border p-2 rounded w-full">
+        </div>
+      </div>
+
+      <div id="tab3" class="tabContent hidden">
+         <div class="grid grid-cols-[auto_2fr] gap-x-4 gap-y-2">
+          <label class="self-center">Titulo</label>
+          <input type="text" id="prodFT" name="final_title" class="border p-2 rounded w-full">
+
+          <label class="self-center">Subtitulo Final</label>
+          <input type="text" id="prodFST" name="final_subtitle" class="border p-2 rounded w-full">
+
+          <label class="self-center">Competencias Adquiridas</label>
+          <textarea id="prodFSK" name="final_skills" rows="2" class="border p-2 rounded w-full"></textarea>
+
+          <label class="self-center">Informações de Suporte</label>
+          <input type="text" id="prodFSP" name="final_support" class="border p-2 rounded w-full">
+        </div>
+      </div>
+
+      <div class="text-right">
+        <button type="submit" id="submitBtn" class="px-6 py-2 bg-indigo-600 text-white rounded"></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+$(function(){
+  $('.tabBtn').on('click', function(){
+    $('.tabBtn').removeClass('border-indigo-600 text-indigo-600');
+    $('.tabBtn').addClass('border-transparent text-gray-500');
+    $(this).addClass('border-indigo-600 text-indigo-600').removeClass('text-gray-500');
+    $('.tabContent').addClass('hidden');
+    $('#' + $(this).data('tab')).removeClass('hidden');
+  });
+});
+</script>
+
+<script>
+$(function(){
+
+    function openModal(mode, data = {}) {
+        $('#prodImage').val(''); // limpa input file
+        $('#modalTitle').text(mode === 'edit' ? 'Editar Produto' : 'Novo Produto');
+        $('#submitBtn').text(mode === 'edit' ? 'Atualizar' : 'Salvar');
+
+        if (mode === 'edit') {
+            $('#prodId').val(data.id);
+            $('#prodName').val(data.name);
+            $('#prodDesc').val(data.description);
+            $('#prodMins').val(data.minutes);
+            $('#prodIT').val(data.intro_title);
+            $('#prodIST').val(data.intro_subtitle);
+            $('#prodIA').val(data.intro_action);
+            $('#prodIAD').val(data.intro_action_description);
+            $('#prodILO').val(data.intro_learning_objectives);
+            $('#prodIED').val(data.intro_estimated_duration);
+            $('#prodICS').val(data.intro_course_structure);
+            $('#prodIW').val(data.intro_warning);
+            $('#prodIWD').val(data.intro_warning_description);
+            $('#prodIBS').val(data.intro_button_start);
+            $('#prodFT').val(data.final_title);
+            $('#prodFST').val(data.final_subtitle);
+            $('#prodFSK').val(data.final_skills);
+            $('#prodFSP').val(data.final_support);
+
+            $('#imgPreview').html(
+                data.image
+                    ? `<img src="/storage/app/public/uploads/products/${data.image}"
+                            class="w-full h-full object-contain rounded"/>`
+                    : 'Sem imagem'
+            );
+        } else {
+            $('#productForm')[0].reset();
+            $('#prodId').val('');
+            $('#imgPreview').text('Sem imagem');
+        }
+
+        $('#productModal').removeClass('hidden');
+        $('#tabHeaders .tabBtn').first().trigger('click');
+    }
+
+    $('#openModal').click(() => openModal('create'));
+    $('#closeModal').click(() => $('#productModal').addClass('hidden'));
+
+    // clique no botão editar: apenas id + AJAX
+    $(document).on('click', '.edit-btn', function(){
+        const id = $(this).data('id');
+        $.request('onGetProduct', { data: { id } }).done(function(product){
+            openModal('edit', product);
+        });
+    });
+
+    $('#prodImage').on('change', function(){
+        const file = this.files[0], $pv = $('#imgPreview');
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = e => $pv.html(
+                `<img src="${e.target.result}" class="w-full h-full object-cover rounded"/>`
+            );
+            reader.readAsDataURL(file);
+        } else {
+            $pv.text('Sem imagem');
+        }
+    });
+
+    $(document).on('ajaxSuccess', function(e, ctx, data) {
+        if (ctx.handler !== 'onSaveProduct' || !data.success) return;
+        const $card = $(`[data-id="${data.id}"]`);
+
+        if ($card.length) {
+            // update existente
+            if (data.image) {
+                $card.find('a').html(
+                    `<img src="/storage/app/public/uploads/products/${data.image}"
+                          class="w-full h-full object-contain
+                                 group-hover:scale-105 transition-transform duration-300"/>`
+                );
+            }
+            $card.find('h3').text(data.name);
+            $card.find('p.text-gray-600').text(data.description);
+            $card.find('.preview-btn')
+                .attr('onclick', `window.location.href='/training/${data.slug}/0'`);
+            $card.find('.qr-btn')
+                .attr('onclick', `window.location.href='/qr/${data.id}'`);
+        } else {
+            // cria novo card
+            const card = $(`
+                <div class="bg-white shadow rounded overflow-hidden flex flex-col" data-id="${data.id}">
+                    <a href="/editor/${data.slug}/1" class="block h-60 overflow-hidden group">
+                        ${
+                            data.image
+                                ? `<img src="/storage/app/public/uploads/products/${data.image}"
+                                       class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"/>`
+                                : `<div class="w-full h-full bg-gray-100 flex items-center justify-center">Sem imagem</div>`
+                        }
+                    </a>
+                    <div class="p-4 flex-1 flex flex-col justify-between">
+                        <h3 class="font-semibold text-lg">${data.name}</h3>
+                        <p class="text-sm text-gray-600">${data.description}</p>
+                        <div class="flex gap-2 mt-3">
+                            <button class="edit-btn text-gray-500 hover:text-gray-800 cursor-pointer" data-id="${data.id}">
+                                <svg class="h-5 w-5"><use href="#icon-edit" /></svg>
+                            </button>
+                            <button onclick="window.location.href='/qr/${data.id}'"
+                                    class="qr-btn text-gray-500 hover:text-gray-800 cursor-pointer">
+                                <svg class="h-5 w-5"><use href="#icon-qr" /></svg>
+                            </button>
+                            <button onclick="window.location.href='/training/${data.slug}/0'"
+                                    class="preview-btn text-gray-500 hover:text-gray-800 cursor-pointer">
+                                <svg class="h-5 w-5"><use href="#icon-preview" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            $('#cardsContainer').append(card);
+        }
+        $('#productModal').addClass('hidden');
+        $('#tabHeaders .tabBtn').first().trigger('click');
+    });
+});
+</script>

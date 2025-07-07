@@ -1,0 +1,131 @@
+title = "FinalPulse Login"
+url   = "/login"
+layout = "clean"
+description = "Formulário split-screen"
+
+[account]
+redirect = "home"
+
+==
+
+<?php
+/* onStart: gera token CSRF para o formulário */
+function onStart()
+{
+    $this['csrf'] = csrf_token();
+}
+?>
+==
+
+{% if user %}
+    <script>window.location.href = '{{ "home"|page }}';</script>
+{% endif %}
+
+{% flash %}
+    {% if type != 'success' %}
+        <p data-control="flash-message" class="mx-4 text-red-600">{{ message }}</p>
+    {% endif %}
+{% endflash %}
+
+<section class="flex min-h-screen items-start justify-center bg-gray-100 pt-[80px] pb-8">
+    <div class="w-full max-w-6xl rounded-2xl bg-white shadow-lg overflow-hidden lg:grid lg:grid-cols-2">
+        <!-- FORMULÁRIO -->
+        <div class="px-10 py-12 lg:px-14">
+
+            <img src="{{ 'assets/imgs/finalpulse.svg'|theme }}"  alt="Logo" id="logo" class="h-16 mb-8">
+
+            <h2 class="text-2xl font-bold tracking-tight text-gray-900">Login</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Ainda não tens conta?
+                <a href="{{ 'register'|page }}" class="font-medium text-indigo-600 hover:text-indigo-500">
+                    Regista-te
+                </a>
+            </p>
+
+            <form data-request="account::onSignin"
+                  method="post"
+                  data-request-validate
+                  data-request-flash
+                  data-request-headers='{"Accept":"application/json"}'
+                  class="mt-8 space-y-5">
+                <input type="hidden" name="_token" value="{{ csrf }}">
+
+                <!-- Campo de utilizador -->
+                <div class="flex items-center gap-4">
+                    <label for="login" class="w-40 text-sm font-medium text-gray-700">Utilizador</label>
+                    <input id="login" name="login" type="text" required autocomplete="username"
+                           class="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm
+                                  focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <!-- Campo de password -->
+                <div class="flex items-center gap-4">
+                    <label for="password" class="w-40 text-sm font-medium text-gray-700">Password</label>
+                    <input id="password" name="password" type="password" required autocomplete="current-password"
+                           class="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm
+                                  focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <!-- Checkbox lembrar-me -->
+                <div class="flex items-center gap-2">
+                    <input id="rememberMe" name="remember" type="checkbox"
+                           class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <label for="rememberMe" class="text-sm text-gray-700">Lembrar-me</label>
+                </div>
+
+                <!-- Botão de submissão -->
+                <button type="submit"
+                        class="flex w-full justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm
+                               font-medium text-white shadow-sm hover:bg-indigo-700 transition">
+                    Entrar
+                </button>
+
+                <!-- Botão recuperar password -->
+                <button type="button"
+                        id="forgotPassword"
+                        class="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                    Esqueceste-te da password?
+                </button>
+
+                <!-- Mensagem de confirmação de envio de e-mail -->
+                <p id="forgotMsg"
+                   class="mt-2 hidden text-sm text-green-600">
+                   Enviámos instruções de recuperação para o teu e-mail.
+                </p>                
+
+            </form>
+
+            {% flash success %}
+                {% if type != 'success' %}
+                    <p class="mt-6 text-center text-green-600">{{ message }}</p>
+                {% endif %}
+            {% endflash %}
+        </div>
+
+        <!-- ILUSTRAÇÃO -->
+        <div class="hidden lg:block">
+            <img src="{{ 'assets/imgs/login.jpg'|theme }}"
+                 alt=""
+                 class="h-full w-full object-cover">
+        </div>
+    </div>
+</section>
+
+<script>
+    /* remove mensagem flash após atualização AJAX */
+    document.addEventListener('ajaxUpdate', () => {
+        const f = document.querySelector('[data-control="flash-message"]');
+        if (f) setTimeout(() => f.remove(), 3000);
+    });
+
+    /* anima logo com classe pulse */
+    $(function(){
+        $('#logo').addClass('pulse');
+    });
+
+    /* onClick forgotPassword: mostra alerta e mensagem */
+    document.getElementById('forgotPassword').addEventListener('click', () => {
+        alert('Se existir uma conta associada, receberás um e-mail com instruções de recuperação.');
+        document.getElementById('forgotMsg').classList.remove('hidden');
+    });
+</script>
